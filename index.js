@@ -5,7 +5,7 @@
 const express = require("express");
 const dotenv = require('dotenv');
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 dotenv.config()
 
 const uri = process.env.MONGODB_URI;
@@ -31,15 +31,48 @@ async function run() {
     
     const db = client.db("wanderlust") //upor j client ase tar maddhome akta database make korlam
     const destinationCollection = db.collection("destinations")
-
+    app.get("/destination", async (req, res) => {
+      const result = await destinationCollection.find().toArray();
+      res.json(result);
+    })
+    
+    // app.get('/destination', async (req, res) => {
+    //    const result = destinationCollection.find().toArray();
+    //    res.json(result);
+    // })
+    
     app.post('/destination', async (req, res) => {
         const destination =  req.body
         console.log(destination);
         const result = await destinationCollection.insertOne(destination)
 
         res.json(result)
+    });
+    
+    app.get('/destination/:id', async (req, res) => {
+      const {id} = req.params
+
+      const result = await destinationCollection.findOne({_id: new ObjectId(id)})
+      res.json(result);
     })
 
+    app.patch("/destination/:id", async (req, res) => {
+      const {id} = req.params
+      const updatedData = req.body
+
+      const result = await destinationCollection.updateOne(
+        {_id: new ObjectId(id)},
+        {$set: updatedData}
+      )
+
+      res.json(result)
+    })
+    
+    app.delete("/destination/:id", async (req, res) => {
+      const {id} = req.params;
+      const result = await destinationCollection.deleteOne({_id: new ObjectId(id)})
+      res.json(result)
+    })
 
 
 
