@@ -6,6 +6,7 @@ const express = require("express");
 const dotenv = require('dotenv');
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { createRemoteJWKSet, jwtVerify } = require("jose-cjs");
 dotenv.config()
 
 const uri = process.env.MONGODB_URI;
@@ -24,10 +25,38 @@ const client = new MongoClient(uri, {
   }
 });
 
-async function run() {
+const JWKS = createRemoteJWKSet(
+  new URL("http://localhost:3000/api/auth/jwks")
+)
+
+const verifyToken = async (req, res, next) => {
+  const authHeader = req?.headers.authorization
+  // console.log(authHeader); //with Bearer 
+  if(!authHeader){
+    return res.status(401).json({message:"Unauthorized"});
+  }
+  const token = authHeader.split(" ")[1]; //With out Bearer
+  if(!token){
+    return res.status(401).json({message:"Unauthorized"});
+  }
+  console.log(token);
+
   try {
+    const {payload} = await jwtVerify(token, JWKS)
+  console.log(payload);
+  next()
+  } catch (error) {
+    return res.status(403).json({message: "Forbidden"});
+  }
+
+  
+}
+
+
+// async function run() {
+//   try {
    
-    await client.connect();
+//     await client.connect();
     
     const db = client.db("wanderlust") //upor j client ase tar maddhome akta database make korlam
     const destinationCollection = db.collection("destinations")
@@ -51,7 +80,9 @@ async function run() {
         res.json(result)
     });
     
-    app.get('/destination/:id', async (req, res) => {
+    //middleware diya api secure kina ta check kora jai
+
+    app.get('/destination/:id', verifyToken, async (req, res) => {
       const {id} = req.params
 
       const result = await destinationCollection.findOne({_id: new ObjectId(id)})
@@ -100,14 +131,14 @@ async function run() {
 
 
 
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
-  }
-}
-run().catch(console.dir);
+//     await client.db("admin").command({ ping: 1 });
+//     console.log("Pinged your deployment. You successfully connected to MongoDB!");
+//   } finally {
+//     // Ensures that the client will close when you finish/error
+//     // await client.close();
+//   }
+// }
+// run().catch(console.dir);
 
 app.get("/",(req, res) => {
     res.send("Server is running fine");
